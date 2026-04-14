@@ -4,216 +4,156 @@
 
 AI-service layer cho hệ thống e-commerce microservice Django, gồm 3 subsystem chính:
 
-1. **Knowledge Graph** (Neo4j) — lưu trữ quan hệ User ↔ Product ↔ Category ↔ Query
-2. **Deep Learning** (GNN) — tạo embedding cho User và Product từ graph
+1. **Knowledge Graph** (Neo4j) — lưu trữ quan hệ User ↔ Product ↔ Category
+2. **Deep Learning** (GNN + Self-trained Embeddings) — tạo embedding cho User và Product
 3. **RAG Chat** — chatbot hỗ trợ khách hàng dựa trên graph context + vector search
 
+**Nguyên tắc: Tự xây dựng toàn bộ, không dùng model bên ngoài (no OpenAI, no pretrained transformers).**
+
 ```
-[User Actions] → Kafka → interaction-service → AI-service
-                                                  ├── Neo4j (Graph)
-                                                  ├── GNN Model (Embeddings)
-                                                  ├── FAISS (Vector Search)
-                                                  └── LLM (RAG Chat)
+[User Actions] → POST /api/track/ → PostgreSQL + Neo4j
+                                          ↓
+                                    Training Pipeline:
+                                    ├── train_embeddings.py  (TF-IDF + Autoencoder)
+                                    ├── export_graph.py      (Neo4j → JSON)
+                                    ├── train_gnn.py         (GNN → embeddings)
+                                    └── build_index.py       (FAISS index + SIMILAR edges)
+                                          ↓
+                                    Serve:
+                                    ├── GET  /api/recommend/<user_id>/
+                                    ├── GET  /api/similar/<product_id>/
+                                    └── POST /api/chat/  (GraphRAG)
 ```
 
-## 2. Microservice Context
+## 2. Self-Trained Models
 
-| Service | Responsibility |
-|---|---|
-| user-service | Profiles, auth |
-| product-service | Catalog, categories |
-| interaction-service | Log events (view, click, cart, purchase, search) |
-| **ai-service** | Graph, GNN, Recommendation, RAG Chat |
+### 2.1 Text Embedding: TF-IDF + Autoencoder
 
-AI-service giao tiếp với các service khác qua Kafka events và REST API.
+Thay vì dùng SentenceTransformer pretrained, tự train text encoder:
+
+```
+Product text → TF-IDF (5000 features, bigrams) → Autoencoder → Dense embedding (128d)
+```
+
+- **TF-IDF**: Fit trên toàn bộ product corpus (name + description + brand + category)
+- **Autoencoder**: Linear(5000→256→128) encoder, Linear(128→256→5000) decoder
+- **Training**: MSE reconstruction loss, 100 epochs
+- **Output**: 128-dim normalized vector per product
+
+### 2.2 GNN: GraphSAGE + BPR Loss
+
+```
+Input: Bipartite graph User ↔ Product (from Neo4j)
+       ↓
+GNN Encoder (2-layer GraphSAGE, dim=128)
+       ↓
+h_u = GNN(N(u))   →  User embedding (128d)
+h_p = GNN(N(p))   →  Product embedding (128d)
+       ↓
+Training: BPR loss (positive/negative edge sampling)
+```
+
+### 2.3 Response Generator (thay LLM)
+
+Thay vì gọi OpenAI API, tự xây response generator:
+
+```
+User query → Intent Detection (keyword matching, 6 intents)
+                ↓
+          Template Selection → Fill with:
+                                ├── Vector search results (product list)
+                                └── Graph context (user history)
+                ↓
+          Structured response (Vietnamese)
+```
+
+Intents: `recommend`, `cheap`, `compare`, `similar`, `best`, `info`
+
+### 2.4 Embedding Fusion
+
+```
+Text embedding (128d, self-trained) + GNN embedding (128d) → Concat (256d) → Normalize → FAISS
+```
 
 ## 3. Knowledge Graph (Neo4j)
 
 ### 3.1 Graph Schema
 
-**Nodes:**
-
 | Node | Properties |
 |---|---|
-| `User` | id, name |
+| `User` | id |
 | `Product` | id, name, description, price |
 | `Category` | id, name |
-| `Query` | id, text |
-
-**Edges:**
 
 | Edge | From → To | Properties |
 |---|---|---|
-| `VIEWED` | User → Product | weight, timestamp |
-| `CLICKED` | User → Product | weight, timestamp |
-| `ADDED_TO_CART` | User → Product | weight, timestamp |
-| `PURCHASED` | User → Product | weight, timestamp |
-| `SEARCHED` | User → Query | timestamp |
+| `INTERACTED` | User → Product | weight, types[] |
+| `SEARCHED` | User → Query | — |
 | `BELONGS_TO` | Product → Category | — |
 | `SIMILAR` | Product ↔ Product | score |
 
-### 3.2 Edge Weight Formula
-
-Aggregate raw events thành weighted edges:
+### 3.2 Edge Weight
 
 ```
-w(u, p) = α · clicks + β · cart + γ · purchases
+w(u, p) = 1·clicks + 3·cart + 5·purchases
 ```
 
-Suggested: α=1, β=3, γ=5
+## 4. Data Collection
 
-### 3.3 Cypher Query Examples
+### 4.1 Seed Data
+1000 sản phẩm thực từ Amazon (Bright Data dataset), 15+ categories.
+CSV file: `data/amazon-products.csv`
 
-```cypher
--- Log interaction
-MERGE (u:User {id: $user_id})
-MERGE (p:Product {id: $product_id})
-MERGE (u)-[r:VIEWED]->(p)
-ON CREATE SET r.weight = 1
-ON MATCH SET r.weight = r.weight + 1
+### 4.2 Interaction Simulation
+Script `simulate_interactions.py` tạo realistic user behavior:
+- Conversion funnel: view(100%) → click(50%) → cart(20%) → purchase(8%)
+- Users prefer 1-2 categories (realistic browsing pattern)
 
--- Get recommendations via graph traversal
-MATCH (u:User {id: $uid})-[:VIEWED|PURCHASED]->(p:Product)
-MATCH (p)-[:SIMILAR]->(rec:Product)
-WHERE NOT (u)-[:PURCHASED]->(rec)
-RETURN rec.id, SUM(r.weight) AS score
-ORDER BY score DESC LIMIT 10
-```
-
-## 4. Deep Learning — Graph Neural Networks
-
-### 4.1 Architecture
-
-Sử dụng GNN (GraphSAGE / GAT) trên heterogeneous graph từ Neo4j.
-
-```
-Input: Graph G = (V, E) from Neo4j
-       ↓
-GNN Encoder (2-3 layers)
-       ↓
-h_u = GNN(N(u))   →  User embedding (dim=128)
-h_p = GNN(N(p))   →  Product embedding (dim=128)
-       ↓
-Downstream tasks: Recommendation, Segmentation
-```
-
-### 4.2 Model Details
-
-- **Framework:** PyTorch + PyG (PyTorch Geometric)
-- **Model:** GraphSAGE hoặc GAT
-- **Input features:**
-  - User: interaction counts, search history encoding
-  - Product: text embedding (SentenceTransformer), price, category one-hot
-- **Training:** Link prediction (predict User→Product edges)
-- **Loss:** BPR Loss (Bayesian Personalized Ranking)
-
-### 4.3 Recommendation Flow
-
-```
-1. Export graph from Neo4j → PyG HeteroData
-2. Train GNN → get user/product embeddings
-3. Store embeddings in FAISS index
-4. At inference: query FAISS for top-K similar products
-```
-
-### 4.4 Embedding Update Strategy
-
-- **Batch retrain:** nightly cron job, re-export graph, retrain GNN
-- **Incremental:** cache new interactions, periodic fine-tune
-
-## 5. RAG Chat System
-
-### 5.1 Pipeline
-
-```
-User Query
-    ↓
-[1] Embed query (SentenceTransformer)
-    ↓
-[2] Retrieve context:
-    ├── FAISS: similar products by vector
-    ├── Neo4j: graph neighbors (user history, related products)
-    └── Merge → GraphRAG context
-    ↓
-[3] Augmented Prompt → LLM
-    ↓
-[4] Response to user
-```
-
-### 5.2 GraphRAG Context Building
-
-```cypher
--- Get user's recent interactions for context
-MATCH (u:User {id: $uid})-[r:VIEWED|PURCHASED]->(p:Product)
-RETURN p.name, p.description, type(r) AS action
-ORDER BY r.timestamp DESC LIMIT 10
-```
-
-Kết hợp graph context + vector search results → prompt cho LLM.
-
-### 5.3 LLM Options
-
-| Option | Use case |
-|---|---|
-| OpenAI GPT-4o-mini | Quick MVP, high quality |
-| LLaMA (local) | Privacy, cost control |
-
-## 6. Tech Stack
+## 5. Tech Stack
 
 | Layer | Technology |
 |---|---|
-| API Gateway | Django REST Framework |
-| AI Service | FastAPI (async, ML serving) |
-| Graph DB | Neo4j |
+| API | Django REST Framework |
+| Graph DB | Neo4j (Cypher) |
 | Vector DB | FAISS |
-| ML Framework | PyTorch + PyG |
-| Text Embedding | SentenceTransformer |
-| Event Streaming | Kafka |
+| GNN | PyTorch + PyG (GraphSAGE) |
+| Text Embedding | Self-trained (TF-IDF + Autoencoder) |
+| Chat | Self-built (Intent + Template + Retrieval) |
+| Database | PostgreSQL |
 | Cache | Redis |
-| Relational DB | PostgreSQL |
-| LLM | OpenAI API / LLaMA |
 
-## 7. API Endpoints (AI-Service)
+**Không dependency nào vào external AI API hoặc pretrained model.**
+
+## 6. Training Pipeline
+
+```bash
+# 1. Seed products
+python manage.py seed_products --sync-neo4j
+
+# 2. Simulate user interactions (data collection)
+python ai_service/scripts/simulate_interactions.py --users 50 --actions 500
+
+# 3. Train text embeddings (TF-IDF + Autoencoder)
+python ai_service/scripts/train_embeddings.py
+
+# 4. Export graph from Neo4j
+python ai_service/scripts/export_graph.py
+
+# 5. Train GNN (GraphSAGE + BPR)
+python ai_service/scripts/train_gnn.py
+
+# 6. Build FAISS index + write SIMILAR edges
+python ai_service/scripts/build_index.py
+```
+
+## 7. API Endpoints
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/track/` | Log user interaction → Neo4j |
-| GET | `/api/recommend/{user_id}/` | Get top-K recommendations |
-| POST | `/api/chat/` | RAG chat query |
-| POST | `/api/embeddings/retrain/` | Trigger GNN retrain |
-| GET | `/api/similar/{product_id}/` | Similar products |
-
-## 8. Data Flow
-
-```
-User clicks/searches/buys
-        ↓
-interaction-service → Kafka event
-        ↓
-ai-service consumer:
-  ├── Write to PostgreSQL (raw log)
-  ├── Update Neo4j graph (weighted edges)
-  └── Invalidate Redis cache
-        ↓
-Nightly batch:
-  ├── Export Neo4j → PyG graph
-  ├── Train GNN → embeddings
-  └── Index embeddings → FAISS
-        ↓
-Serve:
-  ├── /recommend → FAISS lookup
-  ├── /chat → GraphRAG pipeline
-  └── /similar → FAISS lookup
-```
-
-## 9. Deployment
-
-```
-docker-compose:
-  ├── neo4j (port 7687)
-  ├── postgres (port 5432)
-  ├── redis (port 6379)
-  ├── kafka + zookeeper
-  ├── ai-service (FastAPI, port 8001)
-  └── django-gateway (port 8000)
-```
+| GET | `/api/products/` | List products (filter, paginate) |
+| GET | `/api/products/<id>/` | Product detail |
+| GET | `/api/products/search/?q=` | Search by keyword |
+| POST | `/api/track/` | Log interaction → Neo4j |
+| GET | `/api/recommend/<user_id>/` | Graph-based recommendations |
+| GET | `/api/similar/<product_id>/` | FAISS vector similarity |
+| POST | `/api/chat/` | GraphRAG chat (self-built) |

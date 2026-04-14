@@ -1,7 +1,7 @@
 import os, json, faiss
 import numpy as np
 
-_DIM = int(os.getenv("EMBEDDING_DIM", "384"))
+_DIM = int(os.getenv("EMBEDDING_DIM", "128"))
 _DATA_DIR = os.getenv("VECTOR_STORE_DIR", "data/faiss")
 
 
