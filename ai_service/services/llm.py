@@ -73,7 +73,7 @@ def chat(query: str, graph_context: list[dict], vector_results: list[dict],
         query: user's question
         graph_context: list of dicts from Neo4j (user history)
         vector_results: list of dicts from FAISS search [{id, score}]
-        products_map: {product_id: Product} Django objects
+        products_map: {product_id: dict} from product-service HTTP API
     """
     intent = _detect_intent(query)
     template = _TEMPLATES[intent]
@@ -83,10 +83,7 @@ def chat(query: str, graph_context: list[dict], vector_results: list[dict],
     for i, vr in enumerate(vector_results[:5], 1):
         p = products_map.get(vr["id"])
         if p:
-            lines.append(_format_product({
-                "name": p.name, "brand": p.brand,
-                "price": p.price, "rating": p.rating,
-            }, i))
+            lines.append(_format_product(p, i))
     product_list = "\n".join(lines) if lines else "  Không tìm thấy sản phẩm phù hợp."
 
     # Build history note

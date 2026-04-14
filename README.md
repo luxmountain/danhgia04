@@ -21,6 +21,15 @@ AI layer cho hệ thống e-commerce microservice Django — hỗ trợ khách h
                                     └── POST /api/chat/  (GraphRAG)
 ```
 
+## Microservices
+
+| Service | Port | Responsibility |
+|---|---|---|
+| **product-service** | 8001 | Product catalog, search, categories |
+| **ai-service** | 8000 | Recommendations, similarity, RAG chat |
+
+AI-service gọi product-service qua HTTP (`PRODUCT_SERVICE_URL`).
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -45,39 +54,53 @@ AI layer cho hệ thống e-commerce microservice Django — hỗ trợ khách h
 ## Project Structure
 
 ```
-├── manage.py
 ├── docker-compose.yml
+├── data/
+│   └── amazon-products.csv         # 1000 real Amazon products
+│
+├── product_service/                # Independent Django project (port 8001)
+│   ├── manage.py
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   ├── config/
+│   │   ├── settings.py
+│   │   ├── urls.py
+│   │   └── wsgi.py
+│   └── products/
+│       ├── models.py               # Category, Product
+│       ├── api/
+│       │   ├── views.py            # list, detail, search
+│       │   ├── serializers.py
+│       │   └── urls.py
+│       └── management/commands/
+│           └── seed_products.py    # Seed from CSV
+│
+├── ai_service/                     # AI service (port 8000)
+│   ├── models/
+│   │   ├── django_models.py        # Interaction only
+│   │   └── gnn.py                  # GNNEncoder + RecModel
+│   ├── services/
+│   │   ├── product_client.py       # HTTP client → product-service
+│   │   ├── graph.py                # Neo4j service
+│   │   ├── embedding.py            # Self-trained TF-IDF + Autoencoder
+│   │   ├── vector_store.py         # FAISS IndexFlatIP
+│   │   └── llm.py                  # Self-built response generator
+│   ├── scripts/
+│   │   ├── simulate_interactions.py
+│   │   ├── train_embeddings.py
+│   │   ├── export_graph.py
+│   │   ├── train_gnn.py
+│   │   └── build_index.py
+│   ├── management/commands/
+│   │   └── seed_products.py        # Sync products → Neo4j
+│   └── api/
+│       ├── views.py                # 4 AI endpoints
+│       ├── serializers.py
+│       └── urls.py
+├── config/                         # AI-service Django config
+├── manage.py                       # AI-service manage.py
 ├── Dockerfile
-├── requirements.txt
-├── .env.example
-├── DESIGN.md
-├── TASKS.md
-├── config/
-│   ├── settings.py
-│   ├── urls.py
-│   └── wsgi.py
-└── ai_service/
-    ├── models/
-    │   ├── django_models.py        # Category, Product, Interaction
-    │   └── gnn.py                  # GNNEncoder (GraphSAGE) + RecModel (BPR)
-    ├── services/
-    │   ├── graph.py                # Neo4j service
-    │   ├── embedding.py            # Self-trained TF-IDF + Autoencoder
-    │   ├── vector_store.py         # FAISS IndexFlatIP
-    │   └── llm.py                  # Self-built response generator
-    ├── scripts/
-    │   ├── simulate_interactions.py # Data collection (user behavior)
-    │   ├── train_embeddings.py     # Train text encoder
-    │   ├── export_graph.py         # Neo4j → JSON
-    │   ├── train_gnn.py            # Train GNN → embeddings
-    │   └── build_index.py          # Build FAISS index + SIMILAR edges
-    ├── management/
-    │   └── commands/
-    │       └── seed_products.py    # Seed 1000 products from Amazon dataset
-    └── api/
-        ├── serializers.py
-        ├── views.py                # 7 endpoints
-        └── urls.py
+└── requirements.txt
 ```
 
 ## Setup
@@ -86,24 +109,33 @@ AI layer cho hệ thống e-commerce microservice Django — hỗ trợ khách h
 # 1. Config
 cp .env.example .env
 
-# 2. Start infrastructure
+# 2. Start all services
 docker-compose up -d
 
-# 3. Migrate & seed
+# 3. Migrate databases
+# Product service
+cd product_service && python manage.py migrate && cd ..
+# AI service
 python manage.py migrate
-python manage.py seed_products --sync-neo4j
 
-# 4. Collect data (simulate user interactions)
+# 4. Seed products (product-service)
+cd product_service && python manage.py seed_products && cd ..
+
+# 5. Sync products to Neo4j (ai-service)
+python manage.py seed_products
+
+# 6. Simulate user interactions
 python ai_service/scripts/simulate_interactions.py --users 50 --actions 500
 
-# 5. Train all models
-python ai_service/scripts/train_embeddings.py     # Text encoder
-python ai_service/scripts/export_graph.py          # Export graph
-python ai_service/scripts/train_gnn.py             # GNN model
-python ai_service/scripts/build_index.py           # FAISS index
+# 7. Train all models
+python ai_service/scripts/train_embeddings.py
+python ai_service/scripts/export_graph.py
+python ai_service/scripts/train_gnn.py
+python ai_service/scripts/build_index.py
 
-# 6. Run server
-python manage.py runserver
+# 8. Run servers
+cd product_service && python manage.py runserver 8001 &
+python manage.py runserver 8000
 ```
 
 ## Seed Data
@@ -127,84 +159,26 @@ Data source: https://github.com/luminati-io/Amazon-dataset-samples
 
 ## API Endpoints
 
-### Product Service
+### Product Service (port 8001)
 
-#### GET `/api/products/`
-List products with filtering and pagination.
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/products/` | List products (filter by category/brand, pagination) |
+| GET | `/api/products/<id>/` | Product detail |
+| GET | `/api/products/search/?q=` | Search by keyword |
 
-```
-GET /api/products/?category=Electronics&brand=Sony&page=1&size=10
-```
+### AI Service (port 8000)
 
-Response:
-```json
-{
-  "total": 4,
-  "page": 1,
-  "size": 10,
-  "results": [
-    {
-      "id": 4,
-      "name": "Sony WH-1000XM5 Noise Cancelling Headphones",
-      "price": "26990.00",
-      "brand": "Sony",
-      "image_url": "https://m.media-amazon.com/images/I/51aXvjzcukL._SL1500_.jpg",
-      "rating": 4.5,
-      "rating_count": 12890,
-      "category_name": "Electronics"
-    }
-  ]
-}
-```
-
-#### GET `/api/products/<id>/`
-Get product detail.
-
-#### GET `/api/products/search/?q=<keyword>`
-Search products by name, description, or brand.
-
-```
-GET /api/products/search/?q=headphones&limit=5
-```
-
-### AI Service
-
-#### POST `/api/track/`
-Log user interaction → PostgreSQL + Neo4j.
-
-```json
-{"user_id": 1, "product_id": 42, "event_type": "view"}
-```
-Event types: `view`, `click`, `cart`, `purchase`, `search`
-
-#### GET `/api/recommend/<user_id>/`
-Collaborative filtering recommendations từ Neo4j graph.
-
-#### GET `/api/similar/<product_id>/`
-Tìm sản phẩm tương tự qua FAISS (self-trained embeddings).
-
-#### POST `/api/chat/`
-GraphRAG chat — self-built response generator (no external API).
-
-```json
-{"user_id": 1, "query": "Tôi muốn mua điện thoại giá rẻ"}
-```
-
-Response:
-```json
-{
-  "answer": "Các sản phẩm giá tốt phù hợp với bạn:\n  1. Samsung Galaxy M14 5G (Samsung) — ₹13490, ⭐ 4.2\n  ...",
-  "sources": {
-    "graph_context": [...],
-    "vector_results": [...]
-  }
-}
-```
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/track/` | Log interaction → PostgreSQL + Neo4j |
+| GET | `/api/recommend/<user_id>/` | Graph-based recommendations |
+| GET | `/api/similar/<product_id>/` | FAISS vector similarity |
+| POST | `/api/chat/` | GraphRAG chat (self-built) |
 
 ## Training Pipeline
 
 ```bash
-# Full pipeline (chạy lại khi có data mới)
 python ai_service/scripts/train_embeddings.py     # TF-IDF + Autoencoder
 python ai_service/scripts/export_graph.py          # Neo4j → JSON
 python ai_service/scripts/train_gnn.py             # GraphSAGE + BPR loss
@@ -213,10 +187,10 @@ python ai_service/scripts/build_index.py           # FAISS index + SIMILAR edges
 
 ## Key Design Decisions
 
+- **Microservice**: product-service (port 8001) + ai-service (port 8000), giao tiếp qua HTTP
 - **Self-trained only**: Không dùng OpenAI, SentenceTransformer, hay bất kỳ pretrained model nào
-- **Text Embedding**: TF-IDF (5000 features, bigrams) → Autoencoder (128d) — train trên product data
-- **GNN**: GraphSAGE 2-layer + BPR loss — train trên user-product interaction graph
+- **Text Embedding**: TF-IDF (5000 features, bigrams) → Autoencoder (128d)
+- **GNN**: GraphSAGE 2-layer + BPR loss
 - **Response Generator**: Intent detection (6 intents) + template matching + graph/vector context
-- **Data Collection**: Simulate realistic user behavior (conversion funnel) + seed từ Kaggle
 - **Edge weight**: `w(u,p) = 1·clicks + 3·cart + 5·purchases`
 - **Embedding fusion**: Text (128d) + GNN (128d) → concat (256d) → normalize → FAISS
