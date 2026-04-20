@@ -7,24 +7,29 @@ AI layer cho hệ thống e-commerce microservice Django — hỗ trợ khách h
 ## Architecture
 
 ```
-[User Actions] → POST /api/track/ → PostgreSQL + Neo4j
-                                          ↓
-                                    Training Pipeline:
-                                    ├── train_embeddings.py  (TF-IDF + Autoencoder)
-                                    ├── export_graph.py      (Neo4j → JSON)
-                                    ├── train_gnn.py         (GNN → embeddings)
-                                    └── build_index.py       (FAISS index + SIMILAR edges)
-                                          ↓
-                                    Serve:
-                                    ├── GET  /api/recommend/<user_id>/
-                                    ├── GET  /api/similar/<product_id>/
-                                    └── POST /api/chat/  (GraphRAG)
+[Client] → API Gateway (:8080)
+                ├── /api/products/*  → product-service (:8001)
+                └── /api/ai/*        → ai-service (:8000)
+
+[User Actions] → POST /api/ai/track/ → PostgreSQL + Neo4j
+                                              ↓
+                                        Training Pipeline:
+                                        ├── train_embeddings.py  (TF-IDF + Autoencoder)
+                                        ├── export_graph.py      (Neo4j → JSON)
+                                        ├── train_gnn.py         (GNN → embeddings)
+                                        └── build_index.py       (FAISS index + SIMILAR edges)
+                                              ↓
+                                        Serve (via Gateway):
+                                        ├── GET  /api/ai/recommend/<user_id>/
+                                        ├── GET  /api/ai/similar/<product_id>/
+                                        └── POST /api/ai/chat/  (GraphRAG)
 ```
 
 ## Microservices
 
 | Service | Port | Responsibility |
 |---|---|---|
+| **gateway** | 8080 | API Gateway, routing, CORS |
 | **product-service** | 8001 | Product catalog, search, categories |
 | **ai-service** | 8000 | Recommendations, similarity, RAG chat |
 
@@ -57,6 +62,17 @@ AI-service gọi product-service qua HTTP (`PRODUCT_SERVICE_URL`).
 ├── docker-compose.yml
 ├── data/
 │   └── amazon-products.csv         # 1000 real Amazon products
+│
+├── api_gateway/                    # API Gateway (port 8080)
+│   ├── manage.py
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   ├── config/
+│   │   ├── settings.py
+│   │   ├── urls.py
+│   │   └── wsgi.py
+│   └── gateway/
+│       └── views.py                # Reverse proxy logic
 │
 ├── product_service/                # Independent Django project (port 8001)
 │   ├── manage.py
@@ -159,7 +175,20 @@ Data source: https://github.com/luminati-io/Amazon-dataset-samples
 
 ## API Endpoints
 
-### Product Service (port 8001)
+### Via Gateway (port 8080) — Single Entry Point
+
+| Method | Gateway URL | Routes to |
+|---|---|---|
+| GET | `/api/products/` | product-service → `/api/products/` |
+| GET | `/api/products/<id>/` | product-service → `/api/products/<id>/` |
+| GET | `/api/products/search/?q=` | product-service → `/api/products/search/?q=` |
+| POST | `/api/ai/track/` | ai-service → `/api/track/` |
+| GET | `/api/ai/recommend/<user_id>/` | ai-service → `/api/recommend/<user_id>/` |
+| GET | `/api/ai/similar/<product_id>/` | ai-service → `/api/similar/<product_id>/` |
+| POST | `/api/ai/chat/` | ai-service → `/api/chat/` |
+| GET | `/health/` | Gateway health check |
+
+### Product Service (port 8001 — internal)
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -167,7 +196,7 @@ Data source: https://github.com/luminati-io/Amazon-dataset-samples
 | GET | `/api/products/<id>/` | Product detail |
 | GET | `/api/products/search/?q=` | Search by keyword |
 
-### AI Service (port 8000)
+### AI Service (port 8000 — internal)
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -187,7 +216,8 @@ python ai_service/scripts/build_index.py           # FAISS index + SIMILAR edges
 
 ## Key Design Decisions
 
-- **Microservice**: product-service (port 8001) + ai-service (port 8000), giao tiếp qua HTTP
+- **Microservice**: gateway (port 8080) + product-service (port 8001) + ai-service (port 8000), giao tiếp qua HTTP
+- **API Gateway**: Single entry point, reverse proxy bằng Django, CORS handling
 - **Self-trained only**: Không dùng OpenAI, SentenceTransformer, hay bất kỳ pretrained model nào
 - **Text Embedding**: TF-IDF (5000 features, bigrams) → Autoencoder (128d)
 - **GNN**: GraphSAGE 2-layer + BPR loss

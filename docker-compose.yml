@@ -57,6 +57,17 @@ services:
     depends_on: [db, neo4j, redis, product-service]
     volumes: [".:/app", model_data:/app/data]
 
+  gateway:
+    build: ./api_gateway
+    command: gunicorn config.wsgi:application -b 0.0.0.0:8080
+    ports: ["8080:8080"]
+    environment:
+      PRODUCT_SERVICE_URL: http://product-service:8001
+      AI_SERVICE_URL: http://ai-service:8000
+      DEBUG: "1"
+    depends_on: [product-service, ai-service]
+    volumes: ["./api_gateway:/app"]
+
 volumes:
   pgdata:
   product_pgdata:
