@@ -1,0 +1,67 @@
+{
+  "user_id": 63,
+  "started_at": "2026-04-21T14:19:26.348869",
+  "message_count": 5,
+  "messages": [
+    {
+      "user_message": "Recommend sản phẩm cho tôi",
+      "intent": "recommend",
+      "products": [
+        406,
+        501,
+        40,
+        195,
+        58
+      ],
+      "timestamp": "2026-04-21T14:19:26.351893"
+    },
+    {
+      "user_message": "Tôi muốn tìm sản phẩm giá rẻ",
+      "intent": "cheap",
+      "products": [
+        238,
+        81,
+        285,
+        632,
+        505
+      ],
+      "timestamp": "2026-04-21T14:19:26.359895"
+    },
+    {
+      "user_message": "Show me Electronics",
+      "intent": "default",
+      "products": [
+        622,
+        77,
+        63,
+        149,
+        554
+      ],
+      "timestamp": "2026-04-21T14:19:26.369921"
+    },
+    {
+      "user_message": "What's the best seller?",
+      "intent": "best",
+      "products": [
+        238,
+        81,
+        285,
+        632,
+        505
+      ],
+      "timestamp": "2026-04-21T14:19:26.379920"
+    },
+    {
+      "user_message": "Tìm sản phẩm tương tự với sản phẩm 100",
+      "intent": "similar",
+      "products": [
+        238,
+        81,
+        285,
+        632,
+        505
+      ],
+      "timestamp": "2026-04-21T14:19:26.393922"
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+{% extends "ecommerce/base.html" %}
+
+{% block title %}{{ page_title }} - E-Commerce Store{% endblock %}
+
+{% block content %}
+<div style="display: flex; gap: 20px; margin-bottom: 30px;">
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <h3>Danh Mục</h3>
+        <ul class="category-list">
+            <li><a href="/products/">Tất cả sản phẩm</a></li>
+            {% for category in categories %}
+            <li>
+                <a href="/products/?category={{ category }}" 
+                   style="{% if category == current_category %}color: #667eea; font-weight: bold;{% endif %}">
+                    {{ category }}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+        
+        <h3 style="margin-top: 25px;">Lọc</h3>
+        <ul class="category-list">
+            <li><a href="/products/?search=cheap">💰 Giá Rẻ</a></li>
+            <li><a href="/products/">⭐ Bán Chạy</a></li>
+            <li><a href="/products/?search=best">🏆 Top Rated</a></li>
+        </ul>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <h1 style="color: #667eea; margin-bottom: 20px;">{{ page_title }}</h1>
+        <p style="color: #666; margin-bottom: 20px;">
+            Hiển thị {{ product_count }} sản phẩm
+            {% if search_query %}
+                cho từ khóa "{{ search_query }}"
+            {% endif %}
+        </p>
+        
+        <div class="products-grid" style="margin-left: 0;">
+            {% if products %}
+                {% for product in products %}
+                <div class="product-card" onclick="window.location.href='/product/{{ product.id }}/?user_id={{ user_id }}'">
+                    <div class="product-image">
+                        📦 {{ product.name }}
+                    </div>
+                    <div class="product-info">
+                        <div class="product-name">{{ product.name }}</div>
+                        <div class="product-category">{{ product.category }}</div>
+                        <div class="product-rating">⭐ {{ product.rating }}/5</div>
+                        <div class="product-price">{{ product.price|floatformat:0 }}₫</div>
+                        <button class="product-btn" onclick="event.stopPropagation(); addToCart({{ product.id }}, '{{ product.name }}')">
+                            🛒 Thêm vào giỏ
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #999;">
+                    <h2>😢 Không tìm thấy sản phẩm</h2>
+                    <p>Vui lòng thử tìm kiếm với từ khóa khác</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .products-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 20px;
+    }
+</style>
+
+<script>
+const userId = {{ user_id|default:63 }};
+
+function addToCart(productId, productName) {
+    const messagesDiv = document.getElementById('chatMessages');
+    if (messagesDiv) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'message bot';
+        msgDiv.textContent = '✅ ' + productName + ' đã được thêm vào giỏ hàng!';
+        messagesDiv.appendChild(msgDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    } else {
+        alert('✅ ' + productName + ' đã được thêm vào giỏ hàng!');
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,59 @@
+{
+  "best_model": "RNN",
+  "best_metrics": {
+    "model_name": "RNN",
+    "accuracy": 0.12184873949579832,
+    "precision": 0.1214833486248504,
+    "recall": 0.12184873949579832,
+    "f1_score": 0.11770198233292023
+  },
+  "all_metrics": {
+    "RNN": {
+      "model_name": "RNN",
+      "accuracy": 0.12184873949579832,
+      "precision": 0.1214833486248504,
+      "recall": 0.12184873949579832,
+      "f1_score": 0.11770198233292023
+    },
+    "LSTM": {
+      "model_name": "LSTM",
+      "accuracy": 0.1134453781512605,
+      "precision": 0.1251667169183124,
+      "recall": 0.1134453781512605,
+      "f1_score": 0.10690539618622473
+    },
+    "BiLSTM": {
+      "model_name": "BiLSTM",
+      "accuracy": 0.1092436974789916,
+      "precision": 0.10812132054122119,
+      "recall": 0.1092436974789916,
+      "f1_score": 0.10148376384315298
+    }
+  },
+  "hyperparameters": {
+    "input_size": 3,
+    "hidden_size": 128,
+    "num_layers": 2,
+    "seq_len": 5,
+    "batch_size": 32,
+    "num_epochs": 150,
+    "learning_rate": 0.001
+  },
+  "action_classes": {
+    "add_to_cart": 0,
+    "click": 1,
+    "purchase": 2,
+    "review": 3,
+    "search": 4,
+    "share": 5,
+    "view": 6,
+    "wishlist": 7
+  },
+  "dataset_info": {
+    "train_size": 1104,
+    "val_size": 236,
+    "test_size": 238,
+    "num_users": 499,
+    "total_records": 4000
+  }
+}

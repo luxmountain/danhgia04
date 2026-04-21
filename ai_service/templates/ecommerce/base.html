@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}E-Commerce Store{% endblock %}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+        
+        /* Header */
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 25px;
+            list-style: none;
+        }
+        
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            transition: opacity 0.3s;
+        }
+        
+        .nav-links a:hover {
+            opacity: 0.8;
+        }
+        
+        /* Search Bar */
+        .search-bar {
+            display: flex;
+            gap: 10px;
+            flex: 1;
+            max-width: 400px;
+            margin: 0 40px;
+        }
+        
+        .search-bar input {
+            flex: 1;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .search-bar button {
+            padding: 10px 20px;
+            background: white;
+            color: #667eea;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        
+        .search-bar button:hover {
+            background: #f0f0f0;
+        }
+        
+        /* Main Container */
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            height: fit-content;
+        }
+        
+        .sidebar h3 {
+            margin-bottom: 15px;
+            font-size: 16px;
+            color: #667eea;
+        }
+        
+        .category-list {
+            list-style: none;
+        }
+        
+        .category-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .category-list a {
+            color: #666;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        .category-list a:hover {
+            color: #667eea;
+        }
+        
+        /* Products Grid */
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            margin-left: 270px;
+        }
+        
+        .product-card {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+        }
+        
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .product-image {
+            width: 100%;
+            height: 150px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+        }
+        
+        .product-info {
+            padding: 15px;
+        }
+        
+        .product-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .product-category {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 8px;
+        }
+        
+        .product-rating {
+            color: #ffc107;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+        
+        .product-price {
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .product-btn {
+            width: 100%;
+            padding: 8px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        
+        .product-btn:hover {
+            background: #764ba2;
+        }
+        
+        /* Chat Widget */
+        .chat-widget {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            height: 500px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+        }
+        
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .chat-header h3 {
+            font-size: 14px;
+        }
+        
+        .chat-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .message {
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            max-width: 85%;
+        }
+        
+        .message.user {
+            align-self: flex-end;
+            background: #667eea;
+            color: white;
+        }
+        
+        .message.bot {
+            align-self: flex-start;
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .chat-input-area {
+            padding: 15px;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 8px;
+        }
+        
+        .chat-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 13px;
+        }
+        
+        .chat-send {
+            padding: 8px 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .chat-send:hover {
+            background: #764ba2;
+        }
+        
+        .chat-products {
+            padding: 10px;
+            border-top: 1px solid #eee;
+            max-height: 150px;
+            overflow-y: auto;
+            background: #f9f9f9;
+        }
+        
+        .chat-product-item {
+            padding: 8px;
+            background: white;
+            margin: 5px 0;
+            border-radius: 5px;
+            font-size: 12px;
+            cursor: pointer;
+            border-left: 3px solid #667eea;
+        }
+        
+        .chat-product-item:hover {
+            background: #f5f5f5;
+        }
+        
+        /* Footer */
+        footer {
+            background: #333;
+            color: white;
+            padding: 30px;
+            margin-top: 40px;
+            text-align: center;
+        }
+        
+        /* Layout */
+        .content-wrapper {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .main-content {
+            flex: 1;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .products-grid {
+                margin-left: 0;
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            }
+            
+            .search-bar {
+                margin: 0 20px;
+            }
+            
+            .chat-widget {
+                width: 100%;
+                height: 400px;
+                bottom: 0;
+                right: 0;
+                border-radius: 0;
+            }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="header-content">
+            <div class="logo" onclick="window.location.href='/'">🛒 E-Store</div>
+            
+            <form class="search-bar" method="GET" action="/products/">
+                <input type="text" name="search" placeholder="Tìm kiếm sản phẩm..." value="{{ search_query|default:'' }}">
+                <button type="submit">Tìm</button>
+            </form>
+            
+            <ul class="nav-links">
+                <li><a href="/">Trang chủ</a></li>
+                <li><a href="/products/">Sản phẩm</a></li>
+                <li><a href="/cart/">Giỏ hàng</a></li>
+            </ul>
+        </div>
+    </header>
+    
+    <!-- Main Content -->
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+    
+    <!-- Chat Widget -->
+    <div id="chatWidget" class="chat-widget">
+        <div class="chat-header">
+            <h3>💬 AI Shopping Assistant</h3>
+            <button class="chat-close" onclick="toggleChat()">×</button>
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot">
+                Xin chào! Tôi có thể giúp bạn tìm sản phẩm phù hợp. Hãy hỏi bất cứ điều gì! 😊
+            </div>
+        </div>
+        
+        <div id="chatProducts" class="chat-products" style="display: none;"></div>
+        
+        <div class="chat-input-area">
+            <input type="text" id="chatInput" class="chat-input" placeholder="Nhắn tin..." onkeypress="handleChatKeyPress(event)">
+            <button class="chat-send" onclick="sendChatMessage()">Gửi</button>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2024 E-Commerce Store with AI Chat. All rights reserved.</p>
+    </footer>
+    
+    <!-- Chat Script -->
+    <script>
+        const userId = {{ user_id|default:63 }};
+        
+        function toggleChat() {
+            const widget = document.getElementById('chatWidget');
+            widget.style.display = widget.style.display === 'none' ? 'flex' : 'none';
+        }
+        
+        function handleChatKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendChatMessage();
+            }
+        }
+        
+        function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message to chat
+            const messagesDiv = document.getElementById('chatMessages');
+            const userMsgDiv = document.createElement('div');
+            userMsgDiv.className = 'message user';
+            userMsgDiv.textContent = message;
+            messagesDiv.appendChild(userMsgDiv);
+            
+            input.value = '';
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            // Send to server
+            fetch('/api/chat/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    user_id: userId,
+                    message: message,
+                    context: {}
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Add bot message
+                    const botMsgDiv = document.createElement('div');
+                    botMsgDiv.className = 'message bot';
+                    botMsgDiv.textContent = data.bot_message;
+                    messagesDiv.appendChild(botMsgDiv);
+                    
+                    // Show products if available
+                    if (data.products && data.products.length > 0) {
+                        displayChatProducts(data.products);
+                    }
+                }
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'message bot';
+                errorDiv.textContent = 'Có lỗi xảy ra. Vui lòng thử lại.';
+                messagesDiv.appendChild(errorDiv);
+            });
+        }
+        
+        function displayChatProducts(products) {
+            const productsDiv = document.getElementById('chatProducts');
+            productsDiv.innerHTML = '';
+            
+            products.forEach(product => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'chat-product-item';
+                itemDiv.textContent = `${product.name} - ${product.price.toLocaleString()}₫`;
+                itemDiv.onclick = () => {
+                    window.location.href = `/product/${product.id}/?user_id=${userId}`;
+                };
+                productsDiv.appendChild(itemDiv);
+            });
+            
+            productsDiv.style.display = 'block';
+        }
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

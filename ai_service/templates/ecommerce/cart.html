@@ -1,0 +1,300 @@
+{% extends "ecommerce/base.html" %}
+
+{% block title %}Giỏ Hàng - E-Commerce Store{% endblock %}
+
+{% block content %}
+<style>
+    .cart-container {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 30px;
+        margin-bottom: 30px;
+    }
+    
+    .cart-items {
+        background: white;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .cart-items h2 {
+        color: #667eea;
+        margin-bottom: 20px;
+    }
+    
+    .cart-item {
+        display: grid;
+        grid-template-columns: 80px 1fr 100px 80px;
+        gap: 15px;
+        padding: 15px;
+        border-bottom: 1px solid #eee;
+        align-items: center;
+    }
+    
+    .cart-item:last-child {
+        border-bottom: none;
+    }
+    
+    .item-image {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 12px;
+    }
+    
+    .item-info h3 {
+        color: #333;
+        margin-bottom: 5px;
+        font-size: 14px;
+    }
+    
+    .item-info p {
+        color: #999;
+        font-size: 12px;
+    }
+    
+    .item-quantity {
+        text-align: center;
+        font-weight: bold;
+    }
+    
+    .item-price {
+        text-align: right;
+        color: #667eea;
+        font-weight: bold;
+        font-size: 14px;
+    }
+    
+    .summary-box {
+        background: white;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        height: fit-content;
+    }
+    
+    .summary-box h3 {
+        color: #667eea;
+        margin-bottom: 20px;
+    }
+    
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+        font-size: 14px;
+    }
+    
+    .summary-row.total {
+        font-size: 16px;
+        font-weight: bold;
+        color: #667eea;
+        border: none;
+        padding: 15px 0;
+        margin: 10px 0;
+    }
+    
+    .checkout-btn {
+        width: 100%;
+        padding: 15px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: opacity 0.3s;
+    }
+    
+    .checkout-btn:hover {
+        opacity: 0.9;
+    }
+    
+    .continue-shopping {
+        width: 100%;
+        padding: 10px;
+        background: white;
+        color: #667eea;
+        border: 2px solid #667eea;
+        border-radius: 5px;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 10px;
+        transition: all 0.3s;
+    }
+    
+    .continue-shopping:hover {
+        background: #f0f0f0;
+    }
+    
+    .recommended-section {
+        background: white;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-top: 30px;
+    }
+    
+    .recommended-section h3 {
+        color: #667eea;
+        margin-bottom: 20px;
+    }
+    
+    .recommended-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 15px;
+    }
+    
+    .empty-cart {
+        text-align: center;
+        padding: 50px 20px;
+        color: #999;
+    }
+    
+    .empty-cart h2 {
+        color: #667eea;
+        margin-bottom: 10px;
+    }
+    
+    @media (max-width: 768px) {
+        .cart-container {
+            grid-template-columns: 1fr;
+        }
+        
+        .cart-item {
+            grid-template-columns: 60px 1fr 50px;
+        }
+        
+        .item-image {
+            width: 60px;
+            height: 60px;
+        }
+    }
+</style>
+
+<div>
+    <h1 style="color: #667eea; margin-bottom: 20px;">🛒 Giỏ Hàng của Tôi</h1>
+    
+    <div class="cart-container">
+        <!-- Cart Items -->
+        <div class="cart-items">
+            <h2>Các mặt hàng trong giỏ</h2>
+            
+            <div class="cart-item">
+                <div class="item-image">📦 P123</div>
+                <div class="item-info">
+                    <h3>Ví dụ: Product 123</h3>
+                    <p>Electronics</p>
+                </div>
+                <div class="item-quantity">
+                    <input type="number" value="1" min="1" style="width: 50px; padding: 5px; border: 1px solid #ddd; border-radius: 3px;">
+                </div>
+                <div class="item-price">299,000₫</div>
+            </div>
+            
+            <div class="cart-item">
+                <div class="item-image">📦 P456</div>
+                <div class="item-info">
+                    <h3>Ví dụ: Product 456</h3>
+                    <p>Books</p>
+                </div>
+                <div class="item-quantity">
+                    <input type="number" value="1" min="1" style="width: 50px; padding: 5px; border: 1px solid #ddd; border-radius: 3px;">
+                </div>
+                <div class="item-price">199,000₫</div>
+            </div>
+        </div>
+        
+        <!-- Summary -->
+        <div class="summary-box">
+            <h3>Tóm tắt đơn hàng</h3>
+            
+            <div class="summary-row">
+                <span>Tạm tính:</span>
+                <span>498,000₫</span>
+            </div>
+            
+            <div class="summary-row">
+                <span>Phí vận chuyển:</span>
+                <span style="color: #28a745;">Miễn phí</span>
+            </div>
+            
+            <div class="summary-row">
+                <span>Giảm giá:</span>
+                <span style="color: #28a745;">0₫</span>
+            </div>
+            
+            <div class="summary-row total">
+                <span>Tổng cộng:</span>
+                <span>498,000₫</span>
+            </div>
+            
+            <button class="checkout-btn" onclick="checkout()">💳 Thanh Toán</button>
+            <button class="continue-shopping" onclick="window.location.href='/products/?user_id={{ user_id }}'">
+                ← Tiếp tục mua sắm
+            </button>
+        </div>
+    </div>
+    
+    <!-- Recommended Products -->
+    {% if recommended_products %}
+    <div class="recommended-section">
+        <h3>📌 Những sản phẩm khác bạn có thể quan tâm</h3>
+        
+        <div class="recommended-grid">
+            {% for product in recommended_products %}
+            <div class="product-card" style="cursor: pointer;" 
+                 onclick="window.location.href='/product/{{ product.id }}/?user_id={{ user_id }}'">
+                <div class="product-image" style="height: 100px; font-size: 11px;">
+                    📦 {{ product.name }}
+                </div>
+                <div class="product-info" style="padding: 10px;">
+                    <div class="product-name" style="font-size: 12px;">{{ product.name }}</div>
+                    <div class="product-price" style="font-size: 14px; margin: 5px 0;">
+                        {{ product.price|floatformat:0 }}₫
+                    </div>
+                    <button class="product-btn" style="font-size: 11px; padding: 5px;" 
+                            onclick="event.stopPropagation(); addToCart()">
+                        + Thêm
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- AI Assistant Tip -->
+    <div style="background: #f0f8ff; padding: 20px; border-radius: 8px; margin-top: 30px; border-left: 4px solid #667eea;">
+        <strong>💡 Mẹo:</strong> Sử dụng AI Assistant ở góc dưới bên phải để:
+        <ul style="margin-left: 20px; margin-top: 10px; color: #666;">
+            <li>Tìm sản phẩm tương tự với mức giá tốt hơn</li>
+            <li>Khám phá các sản phẩm được khuyến nghị dựa trên lịch sử mua hàng</li>
+            <li>So sánh sản phẩm trước khi thanh toán</li>
+            <li>Hỏi về danh mục sản phẩm cụ thể</li>
+        </ul>
+    </div>
+</div>
+
+<script>
+const userId = {{ user_id|default:63 }};
+
+function addToCart() {
+    alert('✅ Sản phẩm đã được thêm vào giỏ hàng!');
+}
+
+function checkout() {
+    alert('✅ Tiến hành thanh toán!');
+    // In real app, redirect to payment gateway
+}
+</script>
+{% endblock %}

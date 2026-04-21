@@ -1,0 +1,21 @@
+user_id,product_id,action,timestamp,behavior_score,category,session_id
+1,245,view,2024-04-15 09:23:12,0.2,Electronics,sess_001
+1,245,click,2024-04-15 09:24:05,0.4,Electronics,sess_001
+1,245,add_to_cart,2024-04-15 09:25:18,0.7,Electronics,sess_001
+2,578,view,2024-04-15 10:11:33,0.2,Clothing,sess_002
+2,578,wishlist,2024-04-15 10:12:42,0.5,Clothing,sess_002
+3,123,search,2024-04-15 10:45:22,0.3,Books,sess_003
+3,456,view,2024-04-15 10:46:15,0.2,Books,sess_003
+3,456,click,2024-04-15 10:47:08,0.4,Books,sess_003
+4,789,view,2024-04-15 11:15:44,0.2,Home,sess_004
+4,789,add_to_cart,2024-04-15 11:16:55,0.7,Home,sess_004
+4,789,purchase,2024-04-15 11:18:30,1.0,Home,sess_004
+5,234,view,2024-04-15 11:22:16,0.2,Fashion,sess_005
+5,234,click,2024-04-15 11:23:08,0.4,Fashion,sess_005
+5,234,share,2024-04-15 11:24:22,0.5,Fashion,sess_005
+6,567,search,2024-04-15 11:45:33,0.3,Sports,sess_006
+6,890,view,2024-04-15 11:46:42,0.2,Sports,sess_006
+6,890,review,2024-04-15 11:47:55,0.6,Sports,sess_006
+7,912,view,2024-04-15 12:10:15,0.2,Toys,sess_007
+7,912,wishlist,2024-04-15 12:11:30,0.5,Toys,sess_007
+8,334,click,2024-04-15 12:32:08,0.4,Garden,sess_008

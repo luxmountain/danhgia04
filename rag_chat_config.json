@@ -1,0 +1,23 @@
+{
+  "product_count": 978,
+  "category_count": 10,
+  "embedding_dimension": 12,
+  "vector_search_available": false,
+  "intents": [
+    "recommend",
+    "cheap",
+    "compare",
+    "similar",
+    "best",
+    "category"
+  ],
+  "templates": [
+    "recommend",
+    "cheap",
+    "compare",
+    "similar",
+    "best",
+    "category",
+    "default"
+  ]
+}
