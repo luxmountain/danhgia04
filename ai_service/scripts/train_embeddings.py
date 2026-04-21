@@ -19,7 +19,10 @@ MODEL_DIR = os.getenv("MODEL_DIR", "data/models")
 EMBED_DIM = int(os.getenv("EMBEDDING_DIM", "128"))
 EPOCHS = 100
 LR = 1e-3
-PRODUCT_SERVICE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8001/api")
+PRODUCT_SERVICE_URL = os.getenv(
+    "AI_PRODUCT_SERVICE_URL",
+    os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8001/api"),
+)
 
 
 def _clean(text):

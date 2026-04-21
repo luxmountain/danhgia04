@@ -1,8 +1,8 @@
-version: "3.9"
 services:
   db:
     image: postgres:16-alpine
     environment:
+      POSTGRES_DB: ai_service
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports: ["5432:5432"]
@@ -52,7 +52,7 @@ services:
       NEO4J_USER: neo4j
       NEO4J_PASSWORD: changeme123
       REDIS_URL: redis://redis:6379/0
-      PRODUCT_SERVICE_URL: http://product-service:8001/api
+      AI_PRODUCT_SERVICE_URL: http://product-service:8001/api
       DEBUG: "1"
     depends_on: [db, neo4j, redis, product-service]
     volumes: [".:/app", model_data:/app/data]
@@ -62,8 +62,8 @@ services:
     command: gunicorn config.wsgi:application -b 0.0.0.0:8080
     ports: ["8080:8080"]
     environment:
-      PRODUCT_SERVICE_URL: http://product-service:8001
-      AI_SERVICE_URL: http://ai-service:8000
+      GATEWAY_PRODUCT_SERVICE_URL: http://product-service:8001
+      GATEWAY_AI_SERVICE_URL: http://ai-service:8000
       DEBUG: "1"
     depends_on: [product-service, ai-service]
     volumes: ["./api_gateway:/app"]

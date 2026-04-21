@@ -13,7 +13,10 @@ from ai_service.services.vector_store import product_store
 from ai_service.services.graph import graph_service
 
 DATA_DIR = os.getenv("DATA_DIR", "data")
-PRODUCT_SERVICE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8001/api")
+PRODUCT_SERVICE_URL = os.getenv(
+    "AI_PRODUCT_SERVICE_URL",
+    os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8001/api"),
+)
 
 
 def _fetch_all_products():

@@ -45,6 +45,13 @@ def similar_products(request, product_id):
         return Response({"error": "Product not found"}, status=404)
 
     query_vec = embedding_service.embed_text(f"{product['name']} {product.get('description', '')}")
+    # Pad to match index dimension (text_dim + gnn_dim) if needed
+    if product_store.index.d > query_vec.shape[0]:
+        import numpy as np
+        padded = np.zeros(product_store.index.d, dtype="float32")
+        padded[:query_vec.shape[0]] = query_vec
+        norm = np.linalg.norm(padded)
+        query_vec = padded / norm if norm > 0 else padded
     results = product_store.search(query_vec, k=k + 1)
     results = [r for r in results if r["id"] != product_id][:k]
 
@@ -67,6 +74,12 @@ def chat(request):
 
     # 2. Vector context
     q_vec = embedding_service.embed_text(d["query"])
+    if product_store.index.d > q_vec.shape[0]:
+        import numpy as np
+        padded = np.zeros(product_store.index.d, dtype="float32")
+        padded[:q_vec.shape[0]] = q_vec
+        norm = np.linalg.norm(padded)
+        q_vec = padded / norm if norm > 0 else padded
     vec_results = product_store.search(q_vec, k=5)
     products_map = product_client.get_products_by_ids([r["id"] for r in vec_results])
 

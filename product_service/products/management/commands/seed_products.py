@@ -8,7 +8,7 @@ from django.core.management.base import BaseCommand
 from products.models import Category, Product
 
 csv.field_size_limit(sys.maxsize)
-DEFAULT_CSV = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "data", "amazon-products.csv")
+DEFAULT_CSV = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data", "amazon-products.csv")
 
 
 def _parse_price(raw):

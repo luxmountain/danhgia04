@@ -2,7 +2,7 @@
 import os
 import requests
 
-BASE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8001/api")
+BASE_URL = os.getenv("AI_PRODUCT_SERVICE_URL", os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8001/api"))
 TIMEOUT = 5
 
 

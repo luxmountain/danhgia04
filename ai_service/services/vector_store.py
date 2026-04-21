@@ -18,6 +18,8 @@ class VectorStore:
         self.ids.extend(ids)
 
     def search(self, query: np.ndarray, k: int = 10) -> list[dict]:
+        if self.index.ntotal == 0:
+            return []
         q = np.ascontiguousarray(query.reshape(1, -1), dtype="float32")
         scores, indices = self.index.search(q, min(k, self.index.ntotal))
         results = []
@@ -44,3 +46,4 @@ class VectorStore:
 
 # Singleton stores
 product_store = VectorStore("products")
+product_store.load()

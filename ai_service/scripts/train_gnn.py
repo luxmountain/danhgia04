@@ -4,8 +4,12 @@ import torch
 import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 from dotenv import load_dotenv
 load_dotenv()
+
+import django
+django.setup()
 
 from ai_service.models.gnn import RecModel, build_hetero_data
 

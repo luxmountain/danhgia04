@@ -7,7 +7,10 @@ import requests
 from django.core.management.base import BaseCommand
 from ai_service.services.graph import graph_service
 
-PRODUCT_SERVICE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8001/api")
+PRODUCT_SERVICE_URL = os.getenv(
+    "AI_PRODUCT_SERVICE_URL",
+    os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8001/api"),
+)
 
 
 class Command(BaseCommand):

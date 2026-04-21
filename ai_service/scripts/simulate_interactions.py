@@ -18,7 +18,10 @@ from ai_service.models.django_models import Interaction
 from ai_service.services.graph import graph_service
 
 FUNNEL = {"view": 1.0, "click": 0.5, "cart": 0.2, "purchase": 0.08}
-PRODUCT_SERVICE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8001/api")
+PRODUCT_SERVICE_URL = os.getenv(
+    "AI_PRODUCT_SERVICE_URL",
+    os.getenv("PRODUCT_SERVICE_URL", "http://localhost:8001/api"),
+)
 
 
 def _fetch_all_products():

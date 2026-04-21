@@ -33,7 +33,7 @@ AI layer cho hệ thống e-commerce microservice Django — hỗ trợ khách h
 | **product-service** | 8001 | Product catalog, search, categories |
 | **ai-service** | 8000 | Recommendations, similarity, RAG chat |
 
-AI-service gọi product-service qua HTTP (`PRODUCT_SERVICE_URL`).
+AI-service gọi product-service qua HTTP (`AI_PRODUCT_SERVICE_URL`, fallback `PRODUCT_SERVICE_URL`).
 
 ## Tech Stack
 
@@ -121,37 +121,82 @@ AI-service gọi product-service qua HTTP (`PRODUCT_SERVICE_URL`).
 
 ## Setup
 
+Run all commands from project root (`danhgia04`).
+
+### Option A - Docker (recommended)
+
 ```bash
 # 1. Config
 cp .env.example .env
 
-# 2. Start all services
-docker-compose up -d
+# 2. Build + start all services
+docker compose up -d --build
+
+# One-time fix if you used old volumes and see "database ai_service does not exist"
+docker compose exec db psql -U postgres -c "CREATE DATABASE ai_service;"
 
 # 3. Migrate databases
-# Product service
-cd product_service && python manage.py migrate && cd ..
-# AI service
+docker compose exec product-service python manage.py migrate
+docker compose exec ai-service python manage.py migrate
+
+# 4. Seed products + sync to graph
+docker compose exec product-service python manage.py seed_products
+docker compose exec ai-service python manage.py seed_products
+
+# 5. Simulate interactions
+docker compose exec ai-service python ai_service/scripts/simulate_interactions.py --users 50 --actions 500
+
+# 6. Train all models
+docker compose exec ai-service python ai_service/scripts/train_embeddings.py
+docker compose exec ai-service python ai_service/scripts/export_graph.py
+docker compose exec ai-service python ai_service/scripts/train_gnn.py
+docker compose exec ai-service python ai_service/scripts/build_index.py
+```
+
+Gateway API will be available at `http://localhost:8080`.
+
+### Option B - Local run (without app containers)
+
+If you run Django directly on host, use Python 3.11+ and install dependencies for both services:
+
+```bash
+python -m pip install -r requirements.txt
+python -m pip install -r product_service/requirements.txt
+
+# Start infra only
+docker compose up -d db product-db neo4j redis
+
+# Migrate (subshell keeps your cwd safe even if command fails)
+(cd product_service && python manage.py migrate)
 python manage.py migrate
 
-# 4. Seed products (product-service)
-cd product_service && python manage.py seed_products && cd ..
-
-# 5. Sync products to Neo4j (ai-service)
+# Seed + training
+(cd product_service && python manage.py seed_products)
 python manage.py seed_products
-
-# 6. Simulate user interactions
 python ai_service/scripts/simulate_interactions.py --users 50 --actions 500
-
-# 7. Train all models
 python ai_service/scripts/train_embeddings.py
 python ai_service/scripts/export_graph.py
 python ai_service/scripts/train_gnn.py
 python ai_service/scripts/build_index.py
+```
 
-# 8. Run servers
-cd product_service && python manage.py runserver 8001 &
+Run servers in 2 terminals:
+
+```bash
+# Terminal 1
+cd product_service
+python manage.py runserver 8001
+```
+
+```bash
+# Terminal 2 (project root)
 python manage.py runserver 8000
+```
+
+If you use Python 3.13 and get `ImproperlyConfigured: Error loading psycopg2 or psycopg module`, run:
+
+```bash
+python -m pip install "psycopg[binary]>=3.2,<3.3"
 ```
 
 ## Seed Data
