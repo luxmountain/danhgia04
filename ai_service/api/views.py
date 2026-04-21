@@ -8,6 +8,7 @@ from ai_service.services.graph import graph_service
 from ai_service.services.embedding import embedding_service
 from ai_service.services.vector_store import product_store
 from ai_service.services import product_client, llm
+from ai_service.services.behavior_rag import behavior_rag
 
 
 @api_view(["POST"])
@@ -45,7 +46,6 @@ def similar_products(request, product_id):
         return Response({"error": "Product not found"}, status=404)
 
     query_vec = embedding_service.embed_text(f"{product['name']} {product.get('description', '')}")
-    # Pad to match index dimension (text_dim + gnn_dim) if needed
     if product_store.index.d > query_vec.shape[0]:
         import numpy as np
         padded = np.zeros(product_store.index.d, dtype="float32")
@@ -90,3 +90,32 @@ def chat(request):
         "answer": answer,
         "sources": {"graph_context": graph_ctx, "vector_results": vec_results},
     })
+
+
+@api_view(["POST"])
+def behavior_chat(request):
+    """RAG Chat based on KB_Graph (behavior knowledge graph).
+    Uses trained RNN model + Neo4j graph context to answer user queries.
+    """
+    user_id = request.data.get("user_id")
+    query = request.data.get("query", "")
+
+    if not user_id:
+        return Response({"error": "user_id is required"}, status=400)
+
+    result = behavior_rag.chat(int(user_id), query)
+    return Response(result)
+
+
+@api_view(["GET"])
+def user_segment(request, user_id):
+    """Get user segment prediction from KB_Graph + RNN model."""
+    result = behavior_rag.chat(int(user_id), "phân loại segment")
+    return Response(result)
+
+
+@api_view(["GET"])
+def behavior_recommend(request, user_id):
+    """Get behavior-based recommendations: similar users + segment-specific suggestions."""
+    result = behavior_rag.chat(int(user_id), "gợi ý recommend")
+    return Response(result)

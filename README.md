@@ -13,7 +13,7 @@ AI layer cho hệ thống e-commerce microservice Django — hỗ trợ khách h
 
 [User Actions] → POST /api/ai/track/ → PostgreSQL + Neo4j
                                               ↓
-                                        Training Pipeline:
+                                        Training Pipeline (Product):
                                         ├── train_embeddings.py  (TF-IDF + Autoencoder)
                                         ├── export_graph.py      (Neo4j → JSON)
                                         ├── train_gnn.py         (GNN → embeddings)
@@ -23,6 +23,19 @@ AI layer cho hệ thống e-commerce microservice Django — hỗ trợ khách h
                                         ├── GET  /api/ai/recommend/<user_id>/
                                         ├── GET  /api/ai/similar/<product_id>/
                                         └── POST /api/ai/chat/  (GraphRAG)
+
+[data_user500.csv] → Behavior Pipeline:
+                     ├── prepare_user_data.py   (Kaggle REES46 → 500 users × 8 behaviors)
+                     ├── train_behavior_models.py (RNN / LSTM / BiLSTM classification)
+                     └── build_kb_graph.py       (Neo4j KB_Graph)
+                                              ↓
+                     Serve (via Gateway):
+                     ├── POST /api/ai/behavior/chat/           (RAG Chat on KB_Graph)
+                     ├── GET  /api/ai/behavior/segment/<id>/   (User segment)
+                     ├── GET  /api/ai/behavior/recommend/<id>/ (Behavior-based recs)
+                     ├── GET  /api/ai/integration/search/      (Search + recs)
+                     ├── GET  /api/ai/integration/cart/<id>/   (Cart recs)
+                     └── GET  /api/ai/integration/chat-ui/     (Custom chat UI)
 ```
 
 ## Microservices
@@ -55,13 +68,17 @@ AI-service gọi product-service qua HTTP (`AI_PRODUCT_SERVICE_URL`, fallback `P
 | Text Encoder | Product text | 128d dense vector | TF-IDF → Autoencoder (MSE loss) |
 | GNN | User-Product graph | 128d user/product embeddings | GraphSAGE + BPR loss |
 | Response Generator | Query + context | Structured answer | Intent matching + templates |
+| RNN Classifier | 8 behavior counts | User segment (5 classes) | RNN, hidden=64, CrossEntropy |
+| LSTM Classifier | 8 behavior counts | User segment (5 classes) | LSTM, hidden=64, CrossEntropy |
+| BiLSTM Classifier | 8 behavior counts | User segment (5 classes) | BiLSTM, hidden=64, CrossEntropy |
 
 ## Project Structure
 
 ```
 ├── docker-compose.yml
 ├── data/
-│   └── amazon-products.csv         # 1000 real Amazon products
+│   ├── amazon-products.csv         # 1000 real Amazon products
+│   └── data_user500.csv            # 500 users × 8 behaviors (from Kaggle REES46)
 │
 ├── api_gateway/                    # API Gateway (port 8080)
 │   ├── manage.py
@@ -94,25 +111,37 @@ AI-service gọi product-service qua HTTP (`AI_PRODUCT_SERVICE_URL`, fallback `P
 ├── ai_service/                     # AI service (port 8000)
 │   ├── models/
 │   │   ├── django_models.py        # Interaction only
-│   │   └── gnn.py                  # GNNEncoder + RecModel
+│   │   ├── gnn.py                  # GNNEncoder + RecModel
+│   │   └── behavior_models.py      # RNN, LSTM, BiLSTM classifiers
 │   ├── services/
 │   │   ├── product_client.py       # HTTP client → product-service
 │   │   ├── graph.py                # Neo4j service
 │   │   ├── embedding.py            # Self-trained TF-IDF + Autoencoder
 │   │   ├── vector_store.py         # FAISS IndexFlatIP
-│   │   └── llm.py                  # Self-built response generator
+│   │   ├── llm.py                  # Self-built response generator
+│   │   └── behavior_rag.py         # RAG Chat on KB_Graph + RNN
 │   ├── scripts/
 │   │   ├── simulate_interactions.py
 │   │   ├── train_embeddings.py
 │   │   ├── export_graph.py
 │   │   ├── train_gnn.py
-│   │   └── build_index.py
+│   │   ├── build_index.py
+│   │   ├── prepare_user_data.py    # Download & preprocess Kaggle data
+│   │   ├── train_behavior_models.py # Train RNN/LSTM/BiLSTM + plots
+│   │   ├── build_kb_graph.py       # Build Neo4j KB_Graph
+│   │   └── test_all.py             # 34 integration tests
 │   ├── management/commands/
 │   │   └── seed_products.py        # Sync products → Neo4j
 │   └── api/
-│       ├── views.py                # 4 AI endpoints
+│       ├── views.py                # Product AI + Behavior endpoints
+│       ├── integration_views.py    # Search/Cart recs + Chat UI
 │       ├── serializers.py
 │       └── urls.py
+│
+├── docs/
+│   ├── aiservice02_report.md       # Full report (for PDF export)
+│   └── plots/                      # Training curves, comparison, confusion matrices
+│
 ├── config/                         # AI-service Django config
 ├── manage.py                       # AI-service manage.py
 ├── Dockerfile
@@ -154,6 +183,31 @@ docker compose exec ai-service python ai_service/scripts/build_index.py
 ```
 
 Gateway API will be available at `http://localhost:8080`.
+
+### Behavior Pipeline (AI Service 02)
+
+Sau khi hệ thống đã chạy, thực hiện thêm các bước sau cho phần behavior classification:
+
+```bash
+# 1. Tạo data_user500.csv (từ Kaggle REES46 distribution)
+python ai_service/scripts/prepare_user_data.py
+
+# 2. Train RNN/LSTM/BiLSTM models
+python ai_service/scripts/train_behavior_models.py
+
+# 3. Build KB_Graph trong Neo4j
+python ai_service/scripts/build_kb_graph.py
+
+# 4. Restart ai-service để load endpoints mới
+docker compose restart ai-service
+
+# 5. Chạy test (34 tests)
+python ai_service/scripts/test_all.py
+```
+
+Sau khi hoàn thành:
+- Chat UI: http://localhost:8080/api/ai/integration/chat-ui/
+- Neo4j Browser: http://localhost:7474
 
 ### Option B - Local run (without app containers)
 
@@ -218,6 +272,15 @@ python -m pip install "psycopg[binary]>=3.2,<3.3"
 
 Data source: https://github.com/luminati-io/Amazon-dataset-samples
 
+### User Behavior Data
+
+500 users × 8 behaviors, dựa trên phân phối thống kê từ dataset REES46 (Kaggle):
+
+- **Source:** https://www.kaggle.com/datasets/mkechinov/ecommerce-events-history-in-cosmetics-shop
+- **Behaviors:** view, click, cart, purchase, search, wishlist, review, share
+- **Segments:** high_value (90), browser (139), bargain_hunter (92), new_user (65), regular (114)
+- **File:** `data/data_user500.csv`
+
 ## API Endpoints
 
 ### Via Gateway (port 8080) — Single Entry Point
@@ -231,6 +294,12 @@ Data source: https://github.com/luminati-io/Amazon-dataset-samples
 | GET | `/api/ai/recommend/<user_id>/` | ai-service → `/api/recommend/<user_id>/` |
 | GET | `/api/ai/similar/<product_id>/` | ai-service → `/api/similar/<product_id>/` |
 | POST | `/api/ai/chat/` | ai-service → `/api/chat/` |
+| POST | `/api/ai/behavior/chat/` | ai-service → `/api/behavior/chat/` |
+| GET | `/api/ai/behavior/segment/<id>/` | ai-service → `/api/behavior/segment/<id>/` |
+| GET | `/api/ai/behavior/recommend/<id>/` | ai-service → `/api/behavior/recommend/<id>/` |
+| GET | `/api/ai/integration/search/` | ai-service → `/api/integration/search/` |
+| GET | `/api/ai/integration/cart/<id>/` | ai-service → `/api/integration/cart/<id>/` |
+| GET | `/api/ai/integration/chat-ui/` | ai-service → `/api/integration/chat-ui/` |
 | GET | `/health/` | Gateway health check |
 
 ### Product Service (port 8001 — internal)
@@ -249,6 +318,12 @@ Data source: https://github.com/luminati-io/Amazon-dataset-samples
 | GET | `/api/recommend/<user_id>/` | Graph-based recommendations |
 | GET | `/api/similar/<product_id>/` | FAISS vector similarity |
 | POST | `/api/chat/` | GraphRAG chat (self-built) |
+| POST | `/api/behavior/chat/` | RAG Chat on KB_Graph (behavior) |
+| GET | `/api/behavior/segment/<user_id>/` | User segment prediction (RNN) |
+| GET | `/api/behavior/recommend/<user_id>/` | Behavior-based recommendations |
+| GET | `/api/integration/search/?q=&user_id=` | Search + behavior recs |
+| GET | `/api/integration/cart/<user_id>/` | Cart page recommendations |
+| GET | `/api/integration/chat-ui/` | Custom chat UI (HTML) |
 
 ## Training Pipeline
 
